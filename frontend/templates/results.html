@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results - Code Smell Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/results.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h1>Code Smell Analyzer</h1>
+            </div>
+            <a href="/" class="btn-new-analysis">New Analysis</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="results-header">
+            <h2>Analysis Results</h2>
+            <p class="filename">{{ filename }}</p>
+        </div>
+
+        <!-- AI Code Assistant -->
+        <section class="results-section ai-assistant-section">
+            <h3 class="section-title">💡 AI Code Assistant</h3>
+            <div class="ai-controls">
+                <button class="btn-ai" id="ai-explain-btn">
+                    <span class="icon">🧠</span> Explain Code
+                </button>
+                <button class="btn-ai" id="ai-optimize-btn">
+                    <span class="icon">⚡️</span> Optimize Code
+                </button>
+                <button class="btn-ai" id="ai-refactor-btn">
+                    <span class="icon">🛠️</span> General Refactor
+                </button>
+            </div>
+            <div id="ai-output-container" class="ai-output-container" style="display: none;">
+                <div class="ai-output-header">
+                    <h4 id="ai-output-title"></h4>
+                    <button id="ai-close-btn" class="btn-close">&times;</button>
+                </div>
+                <pre id="ai-output-content" class="ai-output-content"></pre>
+            </div>
+        </section>
+
+        <!-- Hidden code content -->
+        <div id="code-content" style="display: none;">{{ code_content }}</div>
+        <!-- Hidden analysis summary -->
+        <div id="analysis-summary" style="display: none;">{{ summary|tojson }}</div>
+
+        <!-- ML Predictions -->
+        <section class="results-section">
+            <h3 class="section-title">🤖 ML Model Predictions</h3>
+            <div class="ml-grid">
+                {% if ml_result.Error %}
+                <div class="ml-card error-card">
+                    <div class="model-name">{{ ml_result.explanation.title }}</div>
+                    <div class="prediction-error-message">
+                        <strong>Reason:</strong> {{ ml_result.explanation.reason }}
+                        <br>
+                        <strong>Fix:</strong> {{ ml_result.explanation.fix }}
+                    </div>
+                </div>
+                {% elif ml_result.predictions.status == "Clean Code" %}
+                <div class="ml-card clean-code-card">
+                    <div class="model-name">Overall ML Status</div>
+                    <div class="prediction clean">No Issues Found</div>
+                    <div class="accuracy-info">
+                        <span class="accuracy-text">Based on combined ML analysis.</span>
+                    </div>
+                </div>
+                {% else %}
+                {% for model, data in ml_result.predictions.items() %}
+                <div class="ml-card">
+                    <div class="model-name">{{ model }}</div>
+                    <div class="prediction {{ 'smell' if data.prediction != 'No Smell' else 'clean' }}">
+                        {{ 'Code Smell Detected' if data.prediction != 'No Smell' else 'No Issues Found' }}
+                    </div>
+                    <div class="accuracy-info">
+                        <div class="accuracy-bar-container">
+                            <div class="accuracy-bar" style="width: {{ data.accuracy }}%;"></div>
+                        </div>
+                        <span class="accuracy-text">{{ '%.2f'|format(data.accuracy) }}% Acc.</span>
+                        {% if data.accuracy < 70 %}
+                        <span class="warning-icon" title="Low accuracy may lead to unreliable predictions.">⚠️</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- "No Smells" Message -->
+        
+
+        <!-- Long Methods -->
+        {% if long_methods %}
+        <section class="results-section">
+            <h3 class="section-title">📏 Long Methods</h3>
+            <div class="issues-grid">
+                {% for method in long_methods %}
+                <div class="issue-card">
+                    <div class="issue-header">
+                        <span class="issue-type">Long Method</span>
+                        <span class="issue-location">Line: {{ method.start }}</span>
+                    </div>
+                    <div class="issue-body">
+                        <p><strong>Method:</strong> {{ method.function }}</p>
+                        <p><strong>Length:</strong> {{ method.length }} lines</p>
+                        <p><strong>Reason:</strong> {{ method.reason.reason }}</p>
+                        <p><strong>Fix:</strong> {{ method.reason.fix }}</p>
+                    </div>
+                    <div class="issue-footer">
+                        <button class="btn-ask-ai" data-smell-type="Long Method" data-code-snippet="{{ method.code_snippet }}">💡 Ask AI to Refactor</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Large Classes -->
+        {% if large_classes %}
+        <section class="results-section">
+            <h3 class="section-title">🏢 Large Classes</h3>
+            <div class="issues-grid">
+                {% for class_info in large_classes %}
+                <div class="issue-card">
+                    <div class="issue-header">
+                        <span class="issue-type">Large Class</span>
+                        <span class="issue-location">Line: {{ class_info.start }}</span>
+                    </div>
+                    <div class="issue-body">
+                        <p><strong>Class:</strong> {{ class_info.class }}</p>
+                        <p><strong>Lines:</strong> {{ class_info.lines }}</p>
+                        <p><strong>Methods:</strong> {{ class_info.num_methods }}</p>
+                        <p><strong>Reason:</strong> {{ class_info.reason.reason }}</p>
+                        <p><strong>Fix:</strong> {{ class_info.reason.fix }}</p>
+                    </div>
+                    <div class="issue-footer">
+                        <button class="btn-ask-ai" data-smell-type="Large Class" data-code-snippet="{{ class_info.code_snippet }}">💡 Ask AI to Refactor</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Rule-Based Issues -->
+        {% if rule_based %}
+        <section class="results-section">
+            <h3 class="section-title">📜 Rule-Based Issues (Pylint)</h3>
+            <div class="issues-grid">
+                {% for issue in rule_based %}
+                <div class="issue-card">
+                    <div class="issue-header">
+                        <span class="issue-type">{{ issue.category }}</span>
+                        <span class="issue-location">Line: {{ issue.line }}</span>
+                    </div>
+                    <div class="issue-body">
+                        <p><strong>Symbol:</strong> {{ issue.type }}</p>
+                        <p><strong>Details:</strong> {{ issue.details }}</p>
+                    </div>
+                    <div class="issue-footer">
+                        <button class="btn-ask-ai" data-smell-type="{{ issue.category }}" data-code-snippet="{{ issue.code_snippet }}">💡 Ask AI to Refactor</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 Code Smell Analyzer. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/results.js') }}"></script>
+</body>
+</html>
